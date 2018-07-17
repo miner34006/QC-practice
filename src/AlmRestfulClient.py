@@ -1,3 +1,5 @@
+# coding: utf-8
+
 import re
 import requests
 import base64
@@ -28,28 +30,35 @@ class AlmRestfulClient:
         if authenticationStatus is True:
             return True
 
-        authenticationUrl = authenticationStatus + '/authenticate'
-        authorizationHeader = self._getValidBasicAuthorizationHeader(self.username, self.password)
+        # authenticationUrl = authenticationStatus + '/authenticate'
+        # authorizationHeader = self._getValidBasicAuthorizationHeader(self.username, self.password)
+        #
+        # self._session.headers.update(authorizationHeader)
+        # self._session.headers.update({'Accept': 'application/xml'})
 
-        self._session.headers.update(authorizationHeader)
-        self._session.headers.update({'Accept': 'application/xml'})
+        authenticationUrl = 'https://login.software.microfocus.com/msg/actions/doLogin.action'
+        data = 'username={0}&password={1}'.format(self.username, self.password)
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Host': 'login.software.microfocus.com',
+        }
 
-        response = self._session.get(authenticationUrl)
+        response = self._session.post(authenticationUrl, data=data, headers=headers)
 
-        failAuthentication = False
+        failedAuthentication = False
         successAuthentication = True
 
         if response.status_code == requests.codes.ok:
-            setCookie = response.headers.get('Set-Cookie')
-            if 'LWSSO_COOKIE_KEY' in setCookie:
+            if 'LWSSO_COOKIE_KEY' in response.cookies.get_dict():
                 self._session.cookies.update({
-                    'LWSSO_COOKIE_KEY': re.search('LWSSO_COOKIE_KEY=(\S+);', setCookie).group(1),
+                    'LWSSO_COOKIE_KEY': response.cookies.get('LWSSO_COOKIE_KEY'),
                 })
                 return successAuthentication
             else:
-                return failAuthentication
+                return failedAuthentication
         else:
-            return failAuthentication
+            return failedAuthentication
+
 
     def createSession(self):
         """Create session with server and update/create cookies
@@ -57,36 +66,43 @@ class AlmRestfulClient:
         :return: True if creating session successful, False otherwise
         :rtype: bool
         """
+
         requestUrl = self._baseUrl + '/rest/site-session'
         response = self._session.post(requestUrl)
 
-        failSessionCreation = False
+        failedSessionCreation = False
         successSessionCreation = True
 
-        if response.status_code == requests.codes.ok:
-            setCookie = response.headers['Set-Cookie']
-            if ('X-XSRF-TOKEN' in setCookie and 'QCSession' in setCookie):
+        if response.status_code == requests.codes.created:
+            cookies = response.cookies.get_dict()
+            if ('XSRF-TOKEN' in cookies and 'QCSession' in cookies):
                 self._session.cookies.update({
-                    'X-XSRF-TOKEN': re.search('XSRF-TOKEN=(\S+)', setCookie).group(1),
-                    'QCSession': re.search('QCSession=(\S+)', setCookie).group(1),
+                    'X-XSRF-TOKEN': cookies.get('XSRF-TOKEN'),
+                    'QCSession': cookies.get('QCSession'),
                 })
                 return successSessionCreation
             else:
-                return failSessionCreation
+                return failedSessionCreation
         else:
-            return failSessionCreation
+            return failedSessionCreation
 
     def logout(self):
-        """Close session on server
+        """Close session on server and clear cookies
 
         :return: True if logout successful, False otherwise
         :rtype: bool
         """
-        #TODO clear cookies in self._session
-
         logoutUrl = self._baseUrl + '/authentication-point/logout'
-        response = requests.get(logoutUrl)
-        return response.status_code == requests.codes.ok
+        response = self._session.get(logoutUrl)
+
+        successLogout = True
+        failedLogout = False
+
+        if response.status_code == requests.codes.ok:
+            self._session.cookies.clear()
+            return successLogout
+        else:
+            return failedLogout
 
     def isAuthenticated(self):
         """Check user authentication status
@@ -107,7 +123,7 @@ class AlmRestfulClient:
         else:
             raise response.raise_for_status()
 
-    def getStringRepresentationOfEntity(self, entityType, entityId=None, query=None):
+    def getEntity(self, entityType, entityId=None, query=None):
         """Get xml data of an entity
 
         :param entityType: type of entity to get:
@@ -136,9 +152,13 @@ class AlmRestfulClient:
 
         response = self._session.get(entityRequestUrl, params={'query': query})
 
-        # TODO parse objects in python representation
-        xml = ET.fromstring(response.content)
-        return xml.findall('Entity')
+        if response.status_code == requests.codes.ok:
+            # TODO parse objects in python representation
+            xml = ET.fromstring(response.content)
+            return xml.findall('Entity')
+
+        else:
+            raise response.raise_for_status()
 
     def _getValidBasicAuthorizationHeader(self, username, password):
         """Encode username and password with 64encode for basic authorization
