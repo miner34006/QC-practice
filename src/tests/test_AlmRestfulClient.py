@@ -86,6 +86,22 @@ class AlmRestfulClientTestCase(unittest.TestCase):
         with self.assertRaises(requests.HTTPError):
             self.assertRaises(client.getEntity('tests'))
 
+    def test_classAsContexManagerWithCorrectData(self):
+        with AlmRestfulClient(self.username, self.password, self.domain, self.project) as client:
+            self.assertIsInstance(client.getEntity('tests'), list)
+
+    def test_classAsContexManagerWithIncorrectData(self):
+        with self.assertRaises(requests.exceptions.HTTPError):
+            with AlmRestfulClient('username', self.password, self.domain, self.project):
+                pass
+
+    def test_classAsContexManagerExitCorrect(self):
+        with self.assertRaises(requests.exceptions.RequestException):
+            with AlmRestfulClient('username', self.password, self.domain, self.project) as client:
+                pass
+
+            client.getEntity('tests')
+
 
 if __name__ == '__main__':
     if len(sys.argv) == 5:
