@@ -20,6 +20,26 @@ class AlmRestfulClient:
     def __del__(self):
         self._session.close()
 
+    def __enter__(self):
+        try:
+            if not self.login():
+                raise requests.exceptions.HTTPError("Exception while login, check username and password")
+
+            if not self.createSession():
+                raise requests.exceptions.HTTPError("Exception while creating session")
+
+        except requests.exceptions.HTTPError as e:
+            if self.logout():
+                raise e
+            else:
+                raise requests.exceptions.HTTPError('Exception while logout')
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.logout():
+            raise requests.exceptions.HTTPError('Exception while logout')
+
     def login(self):
         """Logging in to system with standard http login (basic authentication)
 
@@ -59,7 +79,6 @@ class AlmRestfulClient:
         else:
             return failedAuthentication
 
-
     def createSession(self):
         """Create session with server and update/create cookies
 
@@ -92,6 +111,7 @@ class AlmRestfulClient:
         :return: True if logout successful, False otherwise
         :rtype: bool
         """
+
         logoutUrl = self._baseUrl + '/authentication-point/logout'
         response = self._session.get(logoutUrl)
 
