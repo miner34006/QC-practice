@@ -1,6 +1,6 @@
 """Run class"""
-from base_entity import BaseEntity
 import constants
+from base_entity import BaseEntity
 
 
 class Run(BaseEntity):

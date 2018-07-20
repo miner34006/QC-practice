@@ -1,7 +1,8 @@
 """qc utils module"""
-from xml.etree import ElementTree
 import json
 from functools import wraps
+from xml.etree import ElementTree
+
 import qc_exceptions
 
 

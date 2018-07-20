@@ -1,14 +1,18 @@
 """QC client module"""
-import os
-import sys
+
 import json
 import re
+import sys
+
 import requests
-from constants import Entities
+
 import constants
-import utils
 import qc_exceptions
 import quality_center_utils
+import utils
+from constants import Entities
+
+
 # check QA environment
 #from framework_constants import Framework
 #qaenv = os.environ.get('QAENV', Framework.CODEBASE)
@@ -18,18 +22,23 @@ import quality_center_utils
 class QcClient(object):
     """Class object of QcClient"""
 
-    def __init__(self, project="XtremIO"):
+    def __init__(self, username, password, project="442994577_DEMO"):
         """Initiate a REST session to Quality Center server
 
         :param project: project in QC
         :type project: str
         :return: self
         """
-        self.baseUrl = "http://XIO-QC.xiolab.lab.emc.com:8080/qcbin/"
-        self.domain = "DEFAULT"
+        self.baseUrl = "https://almalmqc1250saastrial.saas.hpe.com/qcbin/"
+        self.domain = "DEFAULT_442994577"
         self.project = project
+
+        self.username = username
+        self.password = password
+
         self.url = '{0}rest/domains/{1}/projects/{2}/'.format(self.baseUrl, self.domain, self.project)
         self.session = requests.session()
+
         self.session.headers.update({'Accept': 'application/xml'})
         self.session.headers.update({'Authorization': 'Basic cWFmcmFtZXdvcms6MTIzNDU2'})
 
@@ -495,3 +504,12 @@ class QcClient(object):
         :rtype: dict
         """
         return self.CreateEntity(Entities.TEST_SETS, testSetObj)
+
+
+if __name__ == '__main__':
+
+    password = sys.argv.pop()
+    username = sys.argv.pop()
+
+    with QcClient(username, password) as client:
+        pass
