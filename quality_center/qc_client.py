@@ -105,6 +105,32 @@ class QcClient(object):
         else:
             return failedAuthentication
 
+    def createSession(self):
+        """Create session with server and update/create cookies
+
+        :return: True if creating session successful, False otherwise
+        :rtype: bool
+        """
+
+        requestUrl = self.baseUrl + 'rest/site-session'
+        response = self.session.post(requestUrl)
+
+        failedSessionCreation = False
+        successSessionCreation = True
+
+        if response.status_code == requests.codes.created:
+            cookies = response.cookies.get_dict()
+            if ('XSRF-TOKEN' in cookies and 'QCSession' in cookies):
+                self.session.cookies.update({
+                    'X-XSRF-TOKEN': cookies.get('XSRF-TOKEN'),
+                    'QCSession': cookies.get('QCSession'),
+                })
+                return successSessionCreation
+            else:
+                return failedSessionCreation
+        else:
+            return failedSessionCreation
+
 
     def isAuthenticated(self):
         """Check user authentication status
