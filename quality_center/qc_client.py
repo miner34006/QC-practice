@@ -40,7 +40,6 @@ class QcClient(object):
         self.session = requests.session()
 
         self.session.headers.update({'Accept': 'application/xml'})
-        self.session.headers.update({'Authorization': 'Basic cWFmcmFtZXdvcms6MTIzNDU2'})
 
     def __enter__(self):
         try:
@@ -85,16 +84,14 @@ class QcClient(object):
             'Host': 'login.software.microfocus.com',
         }
 
-        response = self.session.post(authenticationUrl, data=data, headers=headers)
+        response = requests.post(authenticationUrl, data=data, headers=headers)
 
         failedAuthentication = False
         successAuthentication = True
 
         if response.status_code == requests.codes.ok:
             if 'LWSSO_COOKIE_KEY' in response.cookies.get_dict():
-                self.session.cookies.update({
-                    'LWSSO_COOKIE_KEY': response.cookies.get('LWSSO_COOKIE_KEY'),
-                })
+                self.session.cookies.set('LWSSO_COOKIE_KEY', response.cookies.get('LWSSO_COOKIE_KEY'))
                 return successAuthentication
             else:
                 return failedAuthentication
@@ -117,10 +114,11 @@ class QcClient(object):
         if response.status_code == requests.codes.created:
             cookies = response.cookies.get_dict()
             if ('XSRF-TOKEN' in cookies and 'QCSession' in cookies):
-                self.session.cookies.update({
-                    'X-XSRF-TOKEN': cookies.get('XSRF-TOKEN'),
-                    'QCSession': cookies.get('QCSession'),
-                })
+                self.session.cookies.set(
+                    'X-XSRF-TOKEN',
+                    response.cookies.get('XSRF-TOKEN'),
+                    domain='almalmqc1250saastrial.saas.hpe.com'
+                )
                 return successSessionCreation
             else:
                 return failedSessionCreation
@@ -589,4 +587,5 @@ if __name__ == '__main__':
     username = sys.argv.pop()
 
     with QcClient(username, password) as client:
-        pass
+        client.session.cookies.set('QCSession', '123', domain='almalmqc1250saastrial.saas.hpe.com')
+        print client.isAuthenticated()
