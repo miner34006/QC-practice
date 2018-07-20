@@ -1,5 +1,6 @@
 """qc utils module"""
 import json
+import requests
 from functools import wraps
 from xml.etree import ElementTree
 
@@ -12,14 +13,19 @@ def ResetSession(func):
     @wraps(func)
     def inner(self, *args, **kwargs):
         """wrapped inner function"""
+
         try:
             return func(self, *args, **kwargs)
         except qc_exceptions.QCAuthenticationError:
-            request = self.session.post(self.baseUrl + 'rest/is-authenticated')  # check if session is active
-            if request.status_code == 401:
+            response = self.isAuthenticated()
+
+            if response.status_code == requests.codes.ok:
+                self.createSession()
+            elif response.status_code == requests.codes.unauthorized:
                 self.login()
-            elif request.status_code == 503:
-                raise qc_exceptions.QCError("Could not connect to Quality Center. {0}".format(request.reason))
+                self.createSession()
+            elif response.status_code == requests.codes.unavailable:
+                raise qc_exceptions.QCError("Could not connect to Quality Center. {0}".format(response.reason))
             return func(self, *args, **kwargs)
     return inner
 
