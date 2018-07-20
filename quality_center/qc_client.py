@@ -43,28 +43,24 @@ class QcClient(object):
         self.session.headers.update({'Authorization': 'Basic cWFmcmFtZXdvcms6MTIzNDU2'})
 
     def __enter__(self):
-        """Entering context
+        try:
+            if not self.login():
+                raise requests.exceptions.HTTPError("Exception while login, check username and password")
 
-        :Parameters: none
-        :return: self
-        """
-        self.login()
+            if not self.createSession():
+                raise requests.exceptions.HTTPError("Exception while creating session")
+
+        except requests.exceptions.HTTPError as e:
+            if self.logout():
+                raise e
+            else:
+                raise requests.exceptions.HTTPError('Exception while logout')
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """logout when leaving context
-
-        :param exc_type: Exception type
-        :type exc_type: Exception
-        :param exc_val: exception message
-        :type exc_val: str
-        :param exc_tb: Exception traceback
-        :type exc_tb: traceback
-        :return: None
-        """
-        self.logout()
-        if exc_type:
-            raise qc_exceptions.QCError("An unexpected exception occurred. {0}".format(exc_val))
+        if not self.logout():
+            raise requests.exceptions.HTTPError('Exception while logout')
 
     def login(self):
         """Logging in to system with standard http login (basic authentication)
