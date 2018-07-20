@@ -17,7 +17,7 @@ def ResetSession(func):
         except qc_exceptions.QCAuthenticationError:
             request = self.session.post(self.baseUrl + 'rest/is-authenticated')  # check if session is active
             if request.status_code == 401:
-                self.Login()
+                self.login()
             elif request.status_code == 503:
                 raise qc_exceptions.QCError("Could not connect to Quality Center. {0}".format(request.reason))
             return func(self, *args, **kwargs)

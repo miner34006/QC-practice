@@ -48,7 +48,7 @@ class QcClient(object):
         :Parameters: none
         :return: self
         """
-        self.Login()
+        self.login()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -62,32 +62,87 @@ class QcClient(object):
         :type exc_tb: traceback
         :return: None
         """
-        self.Logout()
+        self.logout()
         if exc_type:
             raise qc_exceptions.QCError("An unexpected exception occurred. {0}".format(exc_val))
 
-    def Login(self):
-        """Authenticates user
+    def login(self):
+        """Logging in to system with standard http login (basic authentication)
 
-        :Parameters: none
-        :return: None
+        :return: True if login successful, False otherwise
+        :rtype: bool
         """
-        request = self.session.get(self.baseUrl + 'authentication-point/authenticate')
-        if request.status_code == 200:
-            request = self.session.post(self.baseUrl + 'rest/site-session')
-            if request.status_code == 201:
-                return
-        raise qc_exceptions.QCAuthenticationError("Authentication Failed [{0}]".format(request.status_code))
+        authenticationStatus = self.isAuthenticated()
+        if authenticationStatus is True:
+            return True
 
-    def Logout(self):
-        """Logs user out
+        # authenticationUrl = authenticationStatus + '/authenticate'
+        # authorizationHeader = self._getValidBasicAuthorizationHeader(self.username, self.password)
+        #
+        # self._session.headers.update(authorizationHeader)
+        # self._session.headers.update({'Accept': 'application/xml'})
 
-        :Parameters: none
-        :returns: None
+        authenticationUrl = 'https://login.software.microfocus.com/msg/actions/doLogin.action'
+        data = 'username={0}&password={1}'.format(self.username, self.password)
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Host': 'login.software.microfocus.com',
+        }
+
+        response = self.session.post(authenticationUrl, data=data, headers=headers)
+
+        failedAuthentication = False
+        successAuthentication = True
+
+        if response.status_code == requests.codes.ok:
+            if 'LWSSO_COOKIE_KEY' in response.cookies.get_dict():
+                self.session.cookies.update({
+                    'LWSSO_COOKIE_KEY': response.cookies.get('LWSSO_COOKIE_KEY'),
+                })
+                return successAuthentication
+            else:
+                return failedAuthentication
+        else:
+            return failedAuthentication
+
+
+    def isAuthenticated(self):
+        """Check user authentication status
+
+        :raises: requests.HTTPError
+
+        :return: True if authenticated, a url to authenticate against if not authenticated
+        :rtype: bool, str
         """
-        request = self.session.get(self.baseUrl + 'authentication-point/logout')
-        if request.status_code == 200:
-            del self.session.cookies['LWSSO_COOKIE_KEY']
+        response = self.session.get(self.baseUrl + 'rest/is-authenticated')
+        if response.status_code == requests.codes.ok:
+            return True
+
+        elif response.status_code == requests.codes.unauthorized:
+            authenticationUrl = (re.search('\"(.*)\"', response.headers.get('WWW-Authenticate'))).group(1)
+            return authenticationUrl
+
+        else:
+            raise response.raise_for_status()
+
+    def logout(self):
+        """Close session on server and clear cookies
+
+        :return: True if logout successful, False otherwise
+        :rtype: bool
+        """
+
+        logoutUrl = self.baseUrl + 'authentication-point/logout'
+        response = self.session.get(logoutUrl)
+
+        successLogout = True
+        failedLogout = False
+
+        if response.status_code == requests.codes.ok:
+            self.session.cookies.clear()
+            return successLogout
+        else:
+            return failedLogout
 
     @utils.ResetSession
     def GetEntity(self, entityType, entityId=None, query=None):
