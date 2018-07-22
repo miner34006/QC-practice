@@ -9,6 +9,7 @@ class Entities(object):
     TEST_SETS = 'test-sets'
     TEST_SET_FOLDERS = 'test-set-folders'
     RUNS = 'runs'
+    TEST_FOLDERS = 'test-folders'
 
 
 class Severity(object):
