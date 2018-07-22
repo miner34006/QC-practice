@@ -45,18 +45,6 @@ class QcClientTestCase(unittest.TestCase):
             cls.client.deleteEntity(entity['type'], entity['id'])
         cls.client.logout()
 
-    @classmethod
-    def _createEntity(cls, type, enity):
-        returnEntity = cls.client.CreateEntity(type, enity)[0]
-        cls.cleanUpList.append({'type': type, 'id': returnEntity.get('id')})
-        return returnEntity
-
-    @classmethod
-    def _deleteEntity(cls, type, enity):
-        cls.client.deleteEntity(type, enity.get('id'))
-        cls.cleanUpList.remove({'type': type, 'id': enity.get('id')})
-
-
     def test_createEntity(self):
         testEntity = type('test', (base_entity.BaseEntity, ), {})()
         testEntity.name = 'Test created from python'
@@ -64,43 +52,43 @@ class QcClientTestCase(unittest.TestCase):
         testEntity.user03 = '5-Urgent'
         testEntity.user04 = 'Basic'
         testEntity.subtypeId = 'MANUAL'
-        testEntity.parentId = '1173'
+        testEntity.parentId = self.testFolder['id']
 
-        returnEntity = self._createEntity(Entities.TESTS, testEntity)
-        self.assertEqual(testEntity.name, returnEntity.get('name'))
-        self.assertEqual(testEntity.user01, returnEntity.get('user-01'))
-        self.assertEqual(testEntity.user03, returnEntity.get('user-03'))
-        self.assertEqual(testEntity.user04, returnEntity.get('user-04'))
-        self.assertEqual(testEntity.subtypeId, returnEntity.get('subtype-id'))
-        self.assertEqual(testEntity.parentId, returnEntity.get('parent-id'))
+        returnEntity = self.client.CreateEntity(Entities.TESTS, testEntity)[0]
+        self.assertEqual(testEntity.name, returnEntity['name'])
+        self.assertEqual(testEntity.user01, returnEntity['user-01'])
+        self.assertEqual(testEntity.user03, returnEntity['user-03'])
+        self.assertEqual(testEntity.user04, returnEntity['user-04'])
+        self.assertEqual(testEntity.subtypeId, returnEntity['subtype-id'])
+        self.assertEqual(testEntity.parentId, returnEntity['parent-id'])
 
-        self._deleteEntity(Entities.TESTS, returnEntity)
+        self.client.deleteEntity(Entities.TESTS, returnEntity['id'])
 
     def test_getEntityWithOneParameter(self):
         entities = self.client.GetEntity(Entities.TESTS)
-        ids = [entity.get('id') for entity in entities]
-        self.assertIn(self.test.get('id'), ids)
+        ids = [entity['id'] for entity in entities]
+        self.assertIn(self.test['id'], ids)
 
     def test_getEntityWithIdParameter(self):
-        id = self.test.get('id')
+        id = self.test['id']
         entities = self.client.GetEntity(Entities.TESTS, entityId=id)
         self.assertEqual(entities[0], self.test)
 
     def test_getEntityWithQueryParameter(self):
-        query = '{{name["{0}"]}}'.format(self.test.get('name'))
+        query = '{{name["{0}"]}}'.format(self.test['name'])
         entities = self.client.GetEntity(Entities.TESTS, query=query)
         self.assertEqual(entities[0], self.test)
 
     def test_getEntityWithAllParameters(self):
-        query = '{{name["{0}"]}}'.format(self.test.get('name'))
-        id = self.test.get('id')
+        query = '{{name["{0}"]}}'.format(self.test['name'])
+        id = self.test['id']
         entities = self.client.GetEntity(Entities.TESTS, entityId=id, query=query)
         self.assertEqual(entities[0], self.test)
 
     def test_getFields(self):
         fields = self.client.GetFields('defect')
         self.assertNotEqual(len(fields), 0)
-
+    #
     def test_updateEntity(self):
         testEntity = type('test', (base_entity.BaseEntity,), {})()
         testEntity.name = 'Test created from python'
@@ -108,15 +96,15 @@ class QcClientTestCase(unittest.TestCase):
         testEntity.user03 = '5-Urgent'
         testEntity.user04 = 'Basic'
         testEntity.subtypeId = 'MANUAL'
-        testEntity.parentId = '1173'
+        testEntity.parentId = self.testFolder['id']
 
-        returnEntity = self._createEntity(Entities.TESTS, testEntity)
-        self.client.UpdateEntity(Entities.TESTS, {'name': 'newName'}, returnEntity.get('id'))
-        changedEntity = self.client.GetTestById(returnEntity.get('id'))[0]
+        returnEntity = self.client.CreateEntity(Entities.TESTS, testEntity)[0]
+        self.client.UpdateEntity(Entities.TESTS, {'name': 'newName'}, returnEntity['id'])
+        changedEntity = self.client.GetTestById(returnEntity['id'])[0]
 
-        self.assertEqual('newName', changedEntity.get('name'))
+        self.assertEqual('newName', changedEntity['name'])
 
-        self._deleteEntity(Entities.TESTS, changedEntity)
+        self.client.deleteEntity(Entities.TESTS, changedEntity['id'])
 
     def test_getTestSetById(self):
         id = self.testSet['id']
@@ -128,7 +116,7 @@ class QcClientTestCase(unittest.TestCase):
         self.assertIn(self.testRun, runs)
 
     def test_getTestByName(self):
-        name = self.test.get('name')
+        name = self.test['name']
         entities = self.client.GetTestByName(name)
         self.assertIn(self.test, entities)
 
@@ -144,20 +132,20 @@ class QcClientTestCase(unittest.TestCase):
         self.assertIn(self.testSet, entities)
 
     def test_getTestSetFoldersById(self):
-        name = self.testSetFolder.get('name')
+        name = self.testSetFolder['name']
         folder = self.client.GetTestSetFolderByName(name)[0]
-        self.assertEqual(name, folder.get('name'))
+        self.assertEqual(name, folder['name'])
 
     def test_getTestById(self):
-        id = self.test.get('id')
+        id = self.test['id']
         entities = self.client.GetTestById(id)
         self.assertIn(self.test, entities)
 
     def test_getTestInstances(self):
         instances = self.client.GetTestInstances(self.testInstance['id'])
-        names = [self.test.get('name')]
+        names = [self.test['name']]
         for instance in instances:
-            self.assertIn(instance.get('name'), names)
+            self.assertIn(instance['name'], names)
 
     def test_getMandatoryFields(self):
         fields = self.client.GetMandatoryFields(Entities.TESTS)
@@ -169,23 +157,23 @@ class QcClientTestCase(unittest.TestCase):
     def test_getReleaseCyclesByDates(self):
         # TODO create cycle for testing
         cycle = self.client.GetReleaseCyclesByDates('1001', '2018-07-10', '2018-07-11')[0]
-        self.assertEqual('first cycle', cycle.get('name'))
+        self.assertEqual('first cycle', cycle['name'])
 
     def test_getTestConfigs(self):
         # TODO create test with configs for testing
         config = self.client.GetTestConfigById(1119)
-        self.assertEqual(config[0].get('name'), 'Edit Profile Page')
+        self.assertEqual(config[0]['name'], 'Edit Profile Page')
 
     def test_getTestConfigById(self):
         # TODO create test config for testing
         config = self.client.GetTestConfigById(1169)[0]
-        self.assertEqual(config.get('name'), 'Determine')
+        self.assertEqual(config['name'], 'Determine')
 
     def test_getTestParameters(self):
         # TODO create test with params for testing
         params = self.client.GetTestParameters(170)
-        self.assertEqual(params[0].get('name'), 'first')
-        self.assertEqual(params[1].get('name'), 'second')
+        self.assertEqual(params[0]['name'], 'first')
+        self.assertEqual(params[1]['name'], 'second')
 
     @unittest.skip('Not enough permission for that test, could not create additional fields')
     def test_getTestByTestlinkId(self):
@@ -203,20 +191,20 @@ class QcClientTestCase(unittest.TestCase):
     def test_createTestRun(self):
         runEntity = type('run', (base_entity.BaseEntity,), {})()
         runEntity.name = 'Test run created from python'
-        runEntity.testId = self.test.get('id')
+        runEntity.testId = self.test['id']
         runEntity.testcyclId = self.testInstance['id']
         runEntity.subtypeId = 'hp.qc.run.MANUAL'
         runEntity.owner = 'polyanok.bd_edu.spbstu.ru'
 
         returnEntity = self.client.CreateTestRun(runEntity, 'Failed', {})[0]
 
-        self.assertEqual(runEntity.name, returnEntity.get('name'))
-        self.assertEqual(runEntity.testId, returnEntity.get('test-id'))
-        self.assertEqual(runEntity.testcyclId, returnEntity.get('testcycl-id'))
-        self.assertEqual(runEntity.subtypeId, returnEntity.get('subtype-id'))
-        self.assertEqual(runEntity.owner, returnEntity.get('owner'))
+        self.assertEqual(runEntity.name, returnEntity['name'])
+        self.assertEqual(runEntity.testId, returnEntity['test-id'])
+        self.assertEqual(runEntity.testcyclId, returnEntity['testcycl-id'])
+        self.assertEqual(runEntity.subtypeId, returnEntity['subtype-id'])
+        self.assertEqual(runEntity.owner, returnEntity['owner'])
 
-        self.client.deleteEntity(Entities.RUNS, returnEntity.get('id'))
+        self.client.deleteEntity(Entities.RUNS, returnEntity['id'])
 
     @unittest.skip('In develop')
     def test_createTestInstance(self):
@@ -227,11 +215,11 @@ class QcClientTestCase(unittest.TestCase):
 
         returnEntity = self.client.CreateTestInstance(testInstanceEntity)[0]
 
-        self.assertEqual(testInstanceEntity.testId, returnEntity.get('test-id'))
-        self.assertEqual(testInstanceEntity.cycleId, returnEntity.get('cycle-id'))
-        self.assertEqual(testInstanceEntity.subtypeId, returnEntity.get('subtype-id'))
+        self.assertEqual(testInstanceEntity.testId, returnEntity['test-id'])
+        self.assertEqual(testInstanceEntity.cycleId, returnEntity['cycle-id'])
+        self.assertEqual(testInstanceEntity.subtypeId, returnEntity['subtype-id'])
 
-        self.client.deleteEntity(Entities.TEST_INSTANCES, returnEntity.get('id'))
+        self.client.deleteEntity(Entities.TEST_INSTANCES, returnEntity['id'])
 
     def test_updateTestInstance(self):
         testInstanceEntity = type('test-instance', (base_entity.BaseEntity,), {})()
@@ -239,24 +227,24 @@ class QcClientTestCase(unittest.TestCase):
         testInstanceEntity.cycleId = self.testSet['id']
         testInstanceEntity.subtypeId = 'hp.qc.test-instance.MANUAL'
 
-        returnEntity = self._createEntity(Entities.TEST_INSTANCES, testInstanceEntity)
-        self.client.UpdateTestInstance(returnEntity.get('id'), {'status': 'Failed'})
-        changedEntity = self.client.GetEntity(Entities.TEST_INSTANCES, returnEntity.get('id'))[0]
+        returnEntity = self.client.CreateEntity(Entities.TEST_INSTANCES, testInstanceEntity)[0]
+        self.client.UpdateTestInstance(returnEntity['id'], {'status': 'Failed'})
+        changedEntity = self.client.GetEntity(Entities.TEST_INSTANCES, returnEntity['id'])[0]
 
-        self.assertEqual('Failed', changedEntity.get('status'))
+        self.assertEqual('Failed', changedEntity['status'])
 
-        self._deleteEntity(Entities.TEST_INSTANCES, changedEntity)
+        self.client.deleteEntity(Entities.TEST_INSTANCES, changedEntity['id'])
 
     def test_CreateTestSet(self):
         testSetEntity = type('test-set', (base_entity.BaseEntity,), {})()
-        testSetEntity.name = 'Test set created from python'
+        testSetEntity.name = 'TestSet'
         testSetEntity.subtypeId = 'hp.qc.test-set.default'
 
         returnEntity = self.client.CreateTestSet(testSetEntity)[0]
-        self.assertEqual(testSetEntity.name, returnEntity.get('name'))
-        self.assertEqual(testSetEntity.subtypeId, returnEntity.get('subtype-id'))
+        self.assertEqual(testSetEntity.name, returnEntity['name'])
+        self.assertEqual(testSetEntity.subtypeId, returnEntity['subtype-id'])
 
-        self.client.deleteEntity(Entities.TEST_SETS, returnEntity.get('id'))
+        self.client.deleteEntity(Entities.TEST_SETS, returnEntity['id'])
 
 if __name__ == '__main__':
     if len(sys.argv) == 3:
