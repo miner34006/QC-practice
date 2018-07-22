@@ -580,6 +580,16 @@ class QcClient(object):
         """
         return self.CreateEntity(Entities.TEST_SETS, testSetObj)
 
+    def deleteEntity(self, entityType, id):
+        url = "{url}{entity}/{id}".format(url=self.url, entity=entityType, id=id)
+        request = self.session.delete(url, headers={'Content-Type': 'application/xml',
+                                                                           'Accept': 'application/json'})
+        if request.status_code == 401:
+            raise qc_exceptions.QCAuthenticationError("Not logged in")
+        content = json.loads(request.content)
+        if request.status_code in [200, 201]:
+            return utils.ConvertJsonToDict(content)
+        raise qc_exceptions.QCError("Failed to delete entity. {0}".format(content['Title']))
 
 if __name__ == '__main__':
 
